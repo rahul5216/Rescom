@@ -1,0 +1,128 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Rescom — Docker Compose Cluster
+#
+# Simulates a real 3-node university campus mesh deployment:
+#   • Node A  (gateway / admin node)   → port 3001 (primary UI access)
+#   • Node B  (relay node)             → port 3002
+#   • Node C  (relay node)             → port 3003
+#
+# Each node is an isolated Rescom instance that discovers and relays
+# packets to its peers, simulating multi-hop routing across a campus.
+#
+# Usage:
+#   docker compose up --build          # Start all 3 nodes
+#   docker compose up node-a           # Start just Node A
+#   docker compose logs -f node-a      # Follow logs for Node A
+#   docker compose down -v             # Stop and remove volumes
+# ──────────────────────────────────────────────────────────────────────────────
+
+version: '3.9'
+
+services:
+
+  # ── Rescom Node A (Gateway / Admin Node) ────────────────────────────────
+  node-a:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: rescom-node-a
+    hostname: campus-node-a
+    ports:
+      - "3001:3001"       # API + WebSocket + Frontend UI
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DB_PATH: /app/data/campus_grid.db
+      DISPLAY_NAME: "Admin Node A"
+      DEPARTMENT: "Administration"
+      PEER_SEEDS: "http://campus-node-b:3001,http://campus-node-c:3001"
+    volumes:
+      - node-a-data:/app/data
+    networks:
+      - campus-mesh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      - node-b
+      - node-c
+
+  # ── Rescom Node B (Relay Node) ──────────────────────────────────────────
+  node-b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: rescom-node-b
+    hostname: campus-node-b
+    ports:
+      - "3002:3001"       # Accessible at localhost:3002 externally
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DB_PATH: /app/data/campus_grid.db
+      DISPLAY_NAME: "Relay Node B"
+      DEPARTMENT: "Computer Science"
+      PEER_SEEDS: "http://campus-node-c:3001"
+    volumes:
+      - node-b-data:/app/data
+    networks:
+      - campus-mesh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Rescom Node C (Relay Node) ──────────────────────────────────────────
+  node-c:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: rescom-node-c
+    hostname: campus-node-c
+    ports:
+      - "3003:3001"       # Accessible at localhost:3003 externally
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DB_PATH: /app/data/campus_grid.db
+      DISPLAY_NAME: "Relay Node C"
+      DEPARTMENT: "Electronics"
+      PEER_SEEDS: ""
+    volumes:
+      - node-c-data:/app/data
+    networks:
+      - campus-mesh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# ── Shared Overlay Network ────────────────────────────────────────────────────
+networks:
+  campus-mesh:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+# ── Persistent Data Volumes ───────────────────────────────────────────────────
+volumes:
+  node-a-data:
+    name: rescom-node-a-data
+  node-b-data:
+    name: rescom-node-b-data
+  node-c-data:
+    name: rescom-node-c-data

@@ -1,0 +1,29 @@
+{
+  "name": "rescom-backend",
+  "version": "2.0.0",
+  "description": "Rescom - Decentralized Mesh Communication Engine & Server",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --no-warnings dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "tsx ../tests/run_all_tests.ts",
+    "test:crypto": "tsx ../tests/crypto_security.test.ts",
+    "test:mesh": "tsx ../tests/mesh_routing.test.ts",
+    "test:load": "tsx ../tests/heavy_load_stress_test.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.9",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
